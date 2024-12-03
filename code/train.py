@@ -1,10 +1,9 @@
-
-
 import torch
 from model import *
 from dataset import *
 from statistics import *
 from torch.utils.data import DataLoader
+from pre_train import PretrainingLoss
 
 # create training and validation dataset
 # split_reviewer(reviewer_id) function split dataset by reviewers
@@ -14,6 +13,10 @@ dataset_fnusa_train,dataset_fnusa_valid = Dataset('/media/chenlab2/hdd51/saif/ep
 NWORKERS = 24
 # DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 DEVICE = 'cpu'
+a=0
+min_a=0
+max_a=1
+step_a=.002
 
 TRAIN = DataLoader(dataset=dataset_fnusa_train,
                    batch_size=32,
@@ -37,6 +40,7 @@ if __name__ == "__main__":
     statistics = Statistics()
 
     for epoch in range(50):
+        
         model.train()
         for i,(x,t) in enumerate(TRAIN):
             optimizer.zero_grad()
@@ -52,7 +56,10 @@ if __name__ == "__main__":
 
             # J = loss(input=y[:,-1,:],target=t)
 
-            J = loss(input=y,target=t)
+            sup_loss = loss(input=y,target=t) # supervised loss
+            pre_loss = pretraining_loss(seg1, seg2, swapped) # self_supervised loss
+
+            J= sup_loss+a*pre_loss
 
             J.backward()
             optimizer.step()
@@ -62,7 +69,9 @@ if __name__ == "__main__":
                                                           str(i).zfill(5),
                                                           J.data.cpu().numpy()))
 
-        # evaluate results for validation test
+        a=+step_a
+        a=min(a,max_a)
+      # evaluate results for validation test
         model.eval()
         for i,(x,t) in enumerate(VALID):
             x = x.to(DEVICE).float()
