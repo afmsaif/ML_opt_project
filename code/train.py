@@ -8,7 +8,10 @@ from pre_train import PretrainingLoss
 # create training and validation dataset
 # split_reviewer(reviewer_id) function split dataset by reviewers
 # results should be evaluated for all reviewers i.e. 1,2,3
-dataset_fnusa_train,dataset_fnusa_valid = Dataset('/media/chenlab2/hdd51/saif/eplap/DATASET_MAYO/').split_reviewer(2)
+dataset_fnusa_train,dataset_fnusa_valid = Sup_Dataset('/media/chenlab2/hdd51/saif/eplap/DATASET_MAYO/').split_reviewer(2)
+
+unsup_data = Unsup_Dataset('/media/chenlab2/hdd51/saif/eplap/DATASET_MAYO/').split_reviewer(2)
+unsup_data_loader = DataLoader(unsup_data, batch_size=32, shuffle=True)
 
 NWORKERS = 24
 # DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -42,8 +45,13 @@ if __name__ == "__main__":
     for epoch in range(50):
         
         model.train()
-        for i,(x,t) in enumerate(TRAIN):
+        for (i, (x, t)), unsup_data in zip(enumerate(TRAIN), unsup_data_loader):
             optimizer.zero_grad()
+
+            seg1, seg2, swapped = unsup_data
+            seg1 = seg1.to(DEVICE).float
+            seg2 = seg2.to(DEVICE).float
+            swapped = swapped.to(DEVICE).float
             x = x.to(DEVICE).float()
 
 
@@ -57,7 +65,7 @@ if __name__ == "__main__":
             # J = loss(input=y[:,-1,:],target=t)
 
             sup_loss = loss(input=y,target=t) # supervised loss
-            pre_loss = pretraining_loss(seg1, seg2, swapped) # self_supervised loss
+            pre_loss = pretraining_loss(model, seg1, seg2, swapped) # self_supervised loss
 
             J= sup_loss+a*pre_loss
 
